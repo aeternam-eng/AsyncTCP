@@ -26,8 +26,10 @@
 #include "sdkconfig.h"
 #include <functional>
 extern "C" {
+    #include "freertos/FreeRTOS.h"
     #include "freertos/semphr.h"
-    #include "lwip/pbuf.h"
+    #include "freertos/queue.h"
+    #include "new_lwip/pbuf.h"
 }
 
 //If core is not defined, then we are running in Arduino or PIO
@@ -170,8 +172,6 @@ class AsyncClient {
     uint16_t _connect_port;
 
     int8_t _close();
-    void _free_closed_slot();
-    void _allocate_closed_slot();
     int8_t _connected(void* pcb, int8_t err);
     void _error(int8_t err);
     int8_t _poll(tcp_pcb* pcb);
