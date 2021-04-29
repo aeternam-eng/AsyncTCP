@@ -19,8 +19,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ASYNCTCP_H_
-#define ASYNCTCP_H_
+#ifndef NEWASYNCTCP_H_
+#define NEWASYNCTCP_H_
 
 #include "IPAddress.h"
 #include "sdkconfig.h"
