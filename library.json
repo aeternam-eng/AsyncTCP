@@ -1,6 +1,6 @@
 {
-  "name":"AsyncTCP",
-  "description":"Asynchronous TCP Library for ESP32",
+  "name":"newAsyncTCP",
+  "description":"Fork from AsyncTCP to use with RTL8720DN eRPC",
   "keywords":"async,tcp",
   "authors":
   {
@@ -10,7 +10,7 @@
   "repository":
   {
     "type": "git",
-    "url": "https://github.com/me-no-dev/AsyncTCP.git"
+    "url": "https://github.com/aeternam-eng/AsyncTCP"
   },
   "version": "1.1.1",
   "license": "LGPL-3.0",
