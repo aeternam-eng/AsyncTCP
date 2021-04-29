@@ -84,12 +84,12 @@ static xQueueHandle _async_queue;
 static TaskHandle_t _async_service_task_handle = NULL;
 
 
-SemaphoreHandle_t _slots_lock;
+SemaphoreHandle_t _new_slots_lock;
 const int _number_of_closed_slots = CONFIG_LWIP_MAX_ACTIVE_TCP;
 static int _closed_slots[_number_of_closed_slots];
 static int _closed_index = []() {
-    _slots_lock = xSemaphoreCreateBinary();
-    xSemaphoreGive(_slots_lock);
+    _new_slots_lock = xSemaphoreCreateBinary();
+    xSemaphoreGive(_new_slots_lock);
     for (int i = 0; i < _number_of_closed_slots; ++ i) {
         _closed_slots[i] = 1;
     }
@@ -346,7 +346,7 @@ static int8_t _tcp_accept(void * arg, newAsyncClient * client) {
  * TCP/IP API Calls
  * */
 
-#include "lwip/priv/tcpip_priv.h"
+#include "new_lwip/priv/tcpip_priv.h"
 
 typedef struct {
     struct tcpip_api_call_data call;
@@ -570,7 +570,7 @@ newAsyncClient::newAsyncClient(tcp_pcb* pcb)
     _pcb = pcb;
     _closed_slot = -1;
     if(_pcb){
-        xSemaphoreTake(_slots_lock, portMAX_DELAY);
+        xSemaphoreTake(_new_slots_lock, portMAX_DELAY);
         int closed_slot_min_index = 0;
         for (int i = 0; i < _number_of_closed_slots; ++ i) {
             if ((_closed_slot == -1 || _closed_slots[i] <= closed_slot_min_index) && _closed_slots[i] != 0) {
@@ -579,7 +579,7 @@ newAsyncClient::newAsyncClient(tcp_pcb* pcb)
             }
         }
         _closed_slots[_closed_slot] = 0;
-        xSemaphoreGive(_slots_lock);
+        xSemaphoreGive(_new_slots_lock);
 
         _rx_last_packet = millis();
         new_tcp_arg(_pcb, this);
@@ -641,42 +641,42 @@ newAsyncClient & newAsyncClient::operator+=(const newAsyncClient &other) {
  * Callback Setters
  * */
 
-void newAsyncClient::onConnect(AcConnectHandler cb, void* arg){
+void newAsyncClient::onConnect(newAcConnectHandler cb, void* arg){
     _connect_cb = cb;
     _connect_cb_arg = arg;
 }
 
-void newAsyncClient::onDisconnect(AcConnectHandler cb, void* arg){
+void newAsyncClient::onDisconnect(newAcConnectHandler cb, void* arg){
     _discard_cb = cb;
     _discard_cb_arg = arg;
 }
 
-void newAsyncClient::onAck(AcAckHandler cb, void* arg){
+void newAsyncClient::onAck(newAcAckHandler cb, void* arg){
     _sent_cb = cb;
     _sent_cb_arg = arg;
 }
 
-void newAsyncClient::onError(AcErrorHandler cb, void* arg){
+void newAsyncClient::onError(newAcErrorHandler cb, void* arg){
     _error_cb = cb;
     _error_cb_arg = arg;
 }
 
-void newAsyncClient::onData(AcDataHandler cb, void* arg){
+void newAsyncClient::onData(newAcDataHandler cb, void* arg){
     _recv_cb = cb;
     _recv_cb_arg = arg;
 }
 
-void newAsyncClient::onPacket(AcPacketHandler cb, void* arg){
+void newAsyncClient::onPacket(newAcPacketHandler cb, void* arg){
   _pb_cb = cb;
   _pb_cb_arg = arg;
 }
 
-void newAsyncClient::onTimeout(AcTimeoutHandler cb, void* arg){
+void newAsyncClient::onTimeout(newAcTimeoutHandler cb, void* arg){
     _timeout_cb = cb;
     _timeout_cb_arg = arg;
 }
 
-void newAsyncClient::onPoll(AcConnectHandler cb, void* arg){
+void newAsyncClient::onPoll(newAcConnectHandler cb, void* arg){
     _poll_cb = cb;
     _poll_cb_arg = arg;
 }
@@ -724,7 +724,7 @@ bool newAsyncClient::connect(const char* host, uint16_t port){
       return false;
     }
     
-    err_t err = dns_gethostbyname(host, &addr, (dns_found_callback)&_tcp_dns_found, this);
+    err_t err = new_dns_gethostbyname(host, &addr, (dns_found_callback)&_tcp_dns_found, this);
     if(err == ERR_OK) {
         return connect(IPAddress(addr.u_addr.ip4.addr), port);
     } else if(err == ERR_INPROGRESS) {
@@ -1242,7 +1242,7 @@ newAsyncServer::~newAsyncServer(){
     end();
 }
 
-void newAsyncServer::onClient(AcConnectHandler cb, void* arg){
+void newAsyncServer::onClient(newAcConnectHandler cb, void* arg){
     _connect_cb = cb;
     _connect_cb_arg = arg;
 }

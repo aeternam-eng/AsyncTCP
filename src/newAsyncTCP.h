@@ -44,12 +44,12 @@ class newAsyncClient;
 #define ASYNC_WRITE_FLAG_COPY 0x01 //will allocate new buffer to hold the data while sending (else will hold reference to the data given)
 #define ASYNC_WRITE_FLAG_MORE 0x02 //will not send PSH flag, meaning that there should be more data to be sent before the application should react.
 
-typedef std::function<void(void*, newAsyncClient*)> AcConnectHandler;
-typedef std::function<void(void*, newAsyncClient*, size_t len, uint32_t time)> AcAckHandler;
-typedef std::function<void(void*, newAsyncClient*, int8_t error)> AcErrorHandler;
-typedef std::function<void(void*, newAsyncClient*, void *data, size_t len)> AcDataHandler;
-typedef std::function<void(void*, newAsyncClient*, struct pbuf *pb)> AcPacketHandler;
-typedef std::function<void(void*, newAsyncClient*, uint32_t time)> AcTimeoutHandler;
+typedef std::function<void(void*, newAsyncClient*)> newAcConnectHandler;
+typedef std::function<void(void*, newAsyncClient*, size_t len, uint32_t time)> newAcAckHandler;
+typedef std::function<void(void*, newAsyncClient*, int8_t error)> newAcErrorHandler;
+typedef std::function<void(void*, newAsyncClient*, void *data, size_t len)> newAcDataHandler;
+typedef std::function<void(void*, newAsyncClient*, struct pbuf *pb)> newAcPacketHandler;
+typedef std::function<void(void*, newAsyncClient*, uint32_t time)> newAcTimeoutHandler;
 
 struct tcp_pcb;
 struct ip_addr;
@@ -112,14 +112,14 @@ class newAsyncClient {
     IPAddress localIP();
     uint16_t  localPort();
 
-    void onConnect(AcConnectHandler cb, void* arg = 0);     //on successful connect
-    void onDisconnect(AcConnectHandler cb, void* arg = 0);  //disconnected
-    void onAck(AcAckHandler cb, void* arg = 0);             //ack received
-    void onError(AcErrorHandler cb, void* arg = 0);         //unsuccessful connect or error
-    void onData(AcDataHandler cb, void* arg = 0);           //data received (called if onPacket is not used)
-    void onPacket(AcPacketHandler cb, void* arg = 0);       //data received
-    void onTimeout(AcTimeoutHandler cb, void* arg = 0);     //ack timeout
-    void onPoll(AcConnectHandler cb, void* arg = 0);        //every 125ms when connected
+    void onConnect(newAcConnectHandler cb, void* arg = 0);     //on successful connect
+    void onDisconnect(newAcConnectHandler cb, void* arg = 0);  //disconnected
+    void onAck(newAcAckHandler cb, void* arg = 0);             //ack received
+    void onError(newAcErrorHandler cb, void* arg = 0);         //unsuccessful connect or error
+    void onData(newAcDataHandler cb, void* arg = 0);           //data received (called if onPacket is not used)
+    void onPacket(newAcPacketHandler cb, void* arg = 0);       //data received
+    void onTimeout(newAcTimeoutHandler cb, void* arg = 0);     //ack timeout
+    void onPoll(newAcConnectHandler cb, void* arg = 0);        //every 125ms when connected
 
     void ackPacket(struct pbuf * pb);//ack pbuf from onPacket
     size_t ack(size_t len); //ack data that you have not acked using the method below
@@ -145,21 +145,21 @@ class newAsyncClient {
     tcp_pcb* _pcb;
     int8_t  _closed_slot;
 
-    AcConnectHandler _connect_cb;
+    newAcConnectHandler _connect_cb;
     void* _connect_cb_arg;
-    AcConnectHandler _discard_cb;
+    newAcConnectHandler _discard_cb;
     void* _discard_cb_arg;
-    AcAckHandler _sent_cb;
+    newAcAckHandler _sent_cb;
     void* _sent_cb_arg;
-    AcErrorHandler _error_cb;
+    newAcErrorHandler _error_cb;
     void* _error_cb_arg;
-    AcDataHandler _recv_cb;
+    newAcDataHandler _recv_cb;
     void* _recv_cb_arg;
-    AcPacketHandler _pb_cb;
+    newAcPacketHandler _pb_cb;
     void* _pb_cb_arg;
-    AcTimeoutHandler _timeout_cb;
+    newAcTimeoutHandler _timeout_cb;
     void* _timeout_cb_arg;
-    AcConnectHandler _poll_cb;
+    newAcConnectHandler _poll_cb;
     void* _poll_cb_arg;
 
     bool _pcb_busy;
@@ -190,7 +190,7 @@ class newAsyncServer {
     newAsyncServer(IPAddress addr, uint16_t port);
     newAsyncServer(uint16_t port);
     ~newAsyncServer();
-    void onClient(AcConnectHandler cb, void* arg);
+    void onClient(newAcConnectHandler cb, void* arg);
     void begin();
     void end();
     void setNoDelay(bool nodelay);
@@ -206,7 +206,7 @@ class newAsyncServer {
     IPAddress _addr;
     bool _noDelay;
     tcp_pcb* _pcb;
-    AcConnectHandler _connect_cb;
+    newAcConnectHandler _connect_cb;
     void* _connect_cb_arg;
 
     int8_t _accept(tcp_pcb* newpcb, int8_t err);
