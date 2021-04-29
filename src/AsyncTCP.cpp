@@ -71,7 +71,7 @@ typedef struct {
                         tcp_pcb * pcb;
                 } poll;
                 struct {
-                        AsyncClient * client;
+                        newAsyncClient * client;
                 } accept;
                 struct {
                         const char * name;
@@ -160,28 +160,28 @@ static void _handle_async_event(lwip_event_packet_t * e){
         _remove_events_with_arg(e->arg);
     } else if(e->event == LWIP_TCP_RECV){
         log_d("-R: 0x%08x\n", e->recv.pcb);
-        AsyncClient::_s_recv(e->arg, e->recv.pcb, e->recv.pb, e->recv.err);
+        newAsyncClient::_s_recv(e->arg, e->recv.pcb, e->recv.pb, e->recv.err);
     } else if(e->event == LWIP_TCP_FIN){
         log_d("-F: 0x%08x\n", e->fin.pcb);
-        AsyncClient::_s_fin(e->arg, e->fin.pcb, e->fin.err);
+        newAsyncClient::_s_fin(e->arg, e->fin.pcb, e->fin.err);
     } else if(e->event == LWIP_TCP_SENT){
         log_d("-S: 0x%08x\n", e->sent.pcb);
-        AsyncClient::_s_sent(e->arg, e->sent.pcb, e->sent.len);
+        newAsyncClient::_s_sent(e->arg, e->sent.pcb, e->sent.len);
     } else if(e->event == LWIP_TCP_POLL){
         log_d("-P: 0x%08x\n", e->poll.pcb);
-        AsyncClient::_s_poll(e->arg, e->poll.pcb);
+        newAsyncClient::_s_poll(e->arg, e->poll.pcb);
     } else if(e->event == LWIP_TCP_ERROR){
         log_d("-E: 0x%08x %d\n", e->arg, e->error.err);
-        AsyncClient::_s_error(e->arg, e->error.err);
+        newAsyncClient::_s_error(e->arg, e->error.err);
     } else if(e->event == LWIP_TCP_CONNECTED){
         log_d("C: 0x%08x 0x%08x %d\n", e->arg, e->connected.pcb, e->connected.err);
-        AsyncClient::_s_connected(e->arg, e->connected.pcb, e->connected.err);
+        newAsyncClient::_s_connected(e->arg, e->connected.pcb, e->connected.err);
     } else if(e->event == LWIP_TCP_ACCEPT){
         log_d("A: 0x%08x 0x%08x\n", e->arg, e->accept.client);
-        AsyncServer::_s_accepted(e->arg, e->accept.client);
+        newAsyncServer::_s_accepted(e->arg, e->accept.client);
     } else if(e->event == LWIP_TCP_DNS){
         log_d("D: 0x%08x %s = %s\n", e->arg, e->dns.name, ipaddr_ntoa(&e->dns.addr));
-        AsyncClient::_s_dns_found(e->dns.name, &e->dns.addr, e->arg);
+        newAsyncClient::_s_dns_found(e->dns.name, &e->dns.addr, e->arg);
     }
     free((void*)(e));
 }
@@ -282,7 +282,7 @@ static int8_t _tcp_recv(void * arg, struct tcp_pcb * pcb, struct pbuf *pb, int8_
         e->fin.pcb = pcb;
         e->fin.err = err;
         //close the PCB in LwIP thread
-        AsyncClient::_s_lwip_fin(e->arg, e->fin.pcb, e->fin.err);
+        newAsyncClient::_s_lwip_fin(e->arg, e->fin.pcb, e->fin.err);
     }
     if (!_send_async_event(&e)) {
         free((void*)(e));
@@ -331,7 +331,7 @@ static void _tcp_dns_found(const char * name, struct ip_addr * ipaddr, void * ar
 }
 
 //Used to switch out from LwIP thread
-static int8_t _tcp_accept(void * arg, AsyncClient * client) {
+static int8_t _tcp_accept(void * arg, newAsyncClient * client) {
     lwip_event_packet_t * e = (lwip_event_packet_t *)malloc(sizeof(lwip_event_packet_t));
     e->event = LWIP_TCP_ACCEPT;
     e->arg = arg;
@@ -542,7 +542,7 @@ static tcp_pcb * _tcp_listen_with_backlog(tcp_pcb * pcb, uint8_t backlog) {
   Async TCP Client
  */
 
-AsyncClient::AsyncClient(tcp_pcb* pcb)
+newAsyncClient::newAsyncClient(tcp_pcb* pcb)
 : _connect_cb(0)
 , _connect_cb_arg(0)
 , _discard_cb(0)
@@ -590,7 +590,7 @@ AsyncClient::AsyncClient(tcp_pcb* pcb)
     }
 }
 
-AsyncClient::~AsyncClient(){
+newAsyncClient::~newAsyncClient(){
     if(_pcb) {
         _close();
     }
@@ -600,7 +600,7 @@ AsyncClient::~AsyncClient(){
  * Operators
  * */
 
-AsyncClient& AsyncClient::operator=(const AsyncClient& other){
+newAsyncClient& newAsyncClient::operator=(const newAsyncClient& other){
     if (_pcb) {
         _close();
     }
@@ -618,20 +618,20 @@ AsyncClient& AsyncClient::operator=(const AsyncClient& other){
     return *this;
 }
 
-bool AsyncClient::operator==(const AsyncClient &other) {
+bool newAsyncClient::operator==(const newAsyncClient &other) {
     return _pcb == other._pcb;
 }
 
-AsyncClient & AsyncClient::operator+=(const AsyncClient &other) {
+newAsyncClient & newAsyncClient::operator+=(const newAsyncClient &other) {
     if(next == NULL){
-        next = (AsyncClient*)(&other);
+        next = (newAsyncClient*)(&other);
         next->prev = this;
     } else {
-        AsyncClient *c = next;
+        newAsyncClient *c = next;
         while(c->next != NULL) {
             c = c->next;
         }
-        c->next =(AsyncClient*)(&other);
+        c->next =(newAsyncClient*)(&other);
         c->next->prev = c;
     }
     return *this;
@@ -641,42 +641,42 @@ AsyncClient & AsyncClient::operator+=(const AsyncClient &other) {
  * Callback Setters
  * */
 
-void AsyncClient::onConnect(AcConnectHandler cb, void* arg){
+void newAsyncClient::onConnect(AcConnectHandler cb, void* arg){
     _connect_cb = cb;
     _connect_cb_arg = arg;
 }
 
-void AsyncClient::onDisconnect(AcConnectHandler cb, void* arg){
+void newAsyncClient::onDisconnect(AcConnectHandler cb, void* arg){
     _discard_cb = cb;
     _discard_cb_arg = arg;
 }
 
-void AsyncClient::onAck(AcAckHandler cb, void* arg){
+void newAsyncClient::onAck(AcAckHandler cb, void* arg){
     _sent_cb = cb;
     _sent_cb_arg = arg;
 }
 
-void AsyncClient::onError(AcErrorHandler cb, void* arg){
+void newAsyncClient::onError(AcErrorHandler cb, void* arg){
     _error_cb = cb;
     _error_cb_arg = arg;
 }
 
-void AsyncClient::onData(AcDataHandler cb, void* arg){
+void newAsyncClient::onData(AcDataHandler cb, void* arg){
     _recv_cb = cb;
     _recv_cb_arg = arg;
 }
 
-void AsyncClient::onPacket(AcPacketHandler cb, void* arg){
+void newAsyncClient::onPacket(AcPacketHandler cb, void* arg){
   _pb_cb = cb;
   _pb_cb_arg = arg;
 }
 
-void AsyncClient::onTimeout(AcTimeoutHandler cb, void* arg){
+void newAsyncClient::onTimeout(AcTimeoutHandler cb, void* arg){
     _timeout_cb = cb;
     _timeout_cb_arg = arg;
 }
 
-void AsyncClient::onPoll(AcConnectHandler cb, void* arg){
+void newAsyncClient::onPoll(AcConnectHandler cb, void* arg){
     _poll_cb = cb;
     _poll_cb_arg = arg;
 }
@@ -685,7 +685,7 @@ void AsyncClient::onPoll(AcConnectHandler cb, void* arg){
  * Main Public Methods
  * */
 
-bool AsyncClient::connect(IPAddress ip, uint16_t port){
+bool newAsyncClient::connect(IPAddress ip, uint16_t port){
     if (_pcb){
         log_w("already connected, state %d", _pcb->state);
         return false;
@@ -715,7 +715,7 @@ bool AsyncClient::connect(IPAddress ip, uint16_t port){
     return true;
 }
 
-bool AsyncClient::connect(const char* host, uint16_t port){
+bool newAsyncClient::connect(const char* host, uint16_t port){
     ip_addr_t addr;
     
     if(!_start_async_task()){
@@ -735,14 +735,14 @@ bool AsyncClient::connect(const char* host, uint16_t port){
     return false;
 }
 
-void AsyncClient::close(bool now){
+void newAsyncClient::close(bool now){
     if(_pcb){
         _tcp_recved(_pcb, _closed_slot, _rx_ack_len);
     }
     _close();
 }
 
-int8_t AsyncClient::abort(){
+int8_t newAsyncClient::abort(){
     if(_pcb) {
         _tcp_abort(_pcb, _closed_slot );
         _pcb = NULL;
@@ -750,14 +750,14 @@ int8_t AsyncClient::abort(){
     return ERR_ABRT;
 }
 
-size_t AsyncClient::space(){
+size_t newAsyncClient::space(){
     if((_pcb != NULL) && (_pcb->state == 4)){
         return tcp_sndbuf(_pcb);
     }
     return 0;
 }
 
-size_t AsyncClient::add(const char* data, size_t size, uint8_t apiflags) {
+size_t newAsyncClient::add(const char* data, size_t size, uint8_t apiflags) {
     if(!_pcb || size == 0 || data == NULL) {
         return 0;
     }
@@ -774,7 +774,7 @@ size_t AsyncClient::add(const char* data, size_t size, uint8_t apiflags) {
     return will_send;
 }
 
-bool AsyncClient::send(){
+bool newAsyncClient::send(){
     int8_t err = ERR_OK;
     err = _tcp_output(_pcb, _closed_slot);
     if(err == ERR_OK){
@@ -785,7 +785,7 @@ bool AsyncClient::send(){
     return false;
 }
 
-size_t AsyncClient::ack(size_t len){
+size_t newAsyncClient::ack(size_t len){
     if(len > _rx_ack_len)
         len = _rx_ack_len;
     if(len){
@@ -795,7 +795,7 @@ size_t AsyncClient::ack(size_t len){
     return len;
 }
 
-void AsyncClient::ackPacket(struct pbuf * pb){
+void newAsyncClient::ackPacket(struct pbuf * pb){
   if(!pb){
     return;
   }
@@ -807,7 +807,7 @@ void AsyncClient::ackPacket(struct pbuf * pb){
  * Main Private Methods
  * */
 
-int8_t AsyncClient::_close(){
+int8_t newAsyncClient::_close(){
     //ets_printf("X: 0x%08x\n", (uint32_t)this);
     int8_t err = ERR_OK;
     if(_pcb) {
@@ -834,7 +834,7 @@ int8_t AsyncClient::_close(){
  * Private Callbacks
  * */
 
-int8_t AsyncClient::_connected(void* pcb, int8_t err){
+int8_t newAsyncClient::_connected(void* pcb, int8_t err){
     _pcb = reinterpret_cast<tcp_pcb*>(pcb);
     if(_pcb){
         _rx_last_packet = millis();
@@ -849,7 +849,7 @@ int8_t AsyncClient::_connected(void* pcb, int8_t err){
     return ERR_OK;
 }
 
-void AsyncClient::_error(int8_t err) {
+void newAsyncClient::_error(int8_t err) {
     if(_pcb){
         new_tcp_arg(_pcb, NULL);
         new_tcp_sent(_pcb, NULL);
@@ -867,7 +867,7 @@ void AsyncClient::_error(int8_t err) {
 }
 
 //In LwIP Thread
-int8_t AsyncClient::_lwip_fin(tcp_pcb* pcb, int8_t err) {
+int8_t newAsyncClient::_lwip_fin(tcp_pcb* pcb, int8_t err) {
     if(!_pcb || pcb != _pcb){
         log_e("0x%08x != 0x%08x", (uint32_t)pcb, (uint32_t)_pcb);
         return ERR_OK;
@@ -887,7 +887,7 @@ int8_t AsyncClient::_lwip_fin(tcp_pcb* pcb, int8_t err) {
 }
 
 //In Async Thread
-int8_t AsyncClient::_fin(tcp_pcb* pcb, int8_t err) {
+int8_t newAsyncClient::_fin(tcp_pcb* pcb, int8_t err) {
     _tcp_clear_events(this);
     if(_discard_cb) {
         _discard_cb(_discard_cb_arg, this);
@@ -895,7 +895,7 @@ int8_t AsyncClient::_fin(tcp_pcb* pcb, int8_t err) {
     return ERR_OK;
 }
 
-int8_t AsyncClient::_sent(tcp_pcb* pcb, uint16_t len) {
+int8_t newAsyncClient::_sent(tcp_pcb* pcb, uint16_t len) {
     _rx_last_packet = millis();
     //log_i("%u", len);
     _pcb_busy = false;
@@ -905,7 +905,7 @@ int8_t AsyncClient::_sent(tcp_pcb* pcb, uint16_t len) {
     return ERR_OK;
 }
 
-int8_t AsyncClient::_recv(tcp_pcb* pcb, pbuf* pb, int8_t err) {
+int8_t newAsyncClient::_recv(tcp_pcb* pcb, pbuf* pb, int8_t err) {
     while(pb != NULL) {
         _rx_last_packet = millis();
         //we should not ack before we assimilate the data
@@ -930,7 +930,7 @@ int8_t AsyncClient::_recv(tcp_pcb* pcb, pbuf* pb, int8_t err) {
     return ERR_OK;
 }
 
-int8_t AsyncClient::_poll(tcp_pcb* pcb){
+int8_t newAsyncClient::_poll(tcp_pcb* pcb){
     if(!_pcb){
         log_w("pcb is NULL");
         return ERR_OK;
@@ -963,7 +963,7 @@ int8_t AsyncClient::_poll(tcp_pcb* pcb){
     return ERR_OK;
 }
 
-void AsyncClient::_dns_found(struct ip_addr *ipaddr){
+void newAsyncClient::_dns_found(struct ip_addr *ipaddr){
     if(ipaddr && ipaddr->u_addr.ip4.addr){
         connect(IPAddress(ipaddr->u_addr.ip4.addr), _connect_port);
     } else {
@@ -980,11 +980,11 @@ void AsyncClient::_dns_found(struct ip_addr *ipaddr){
  * Public Helper Methods
  * */
 
-void AsyncClient::stop() {
+void newAsyncClient::stop() {
     close(false);
 }
 
-bool AsyncClient::free(){
+bool newAsyncClient::free(){
     if(!_pcb) {
         return true;
     }
@@ -994,14 +994,14 @@ bool AsyncClient::free(){
     return false;
 }
 
-size_t AsyncClient::write(const char* data) {
+size_t newAsyncClient::write(const char* data) {
     if(data == NULL) {
         return 0;
     }
     return write(data, strlen(data));
 }
 
-size_t AsyncClient::write(const char* data, size_t size, uint8_t apiflags) {
+size_t newAsyncClient::write(const char* data, size_t size, uint8_t apiflags) {
     size_t will_send = add(data, size, apiflags);
     if(!will_send || !send()) {
         return 0;
@@ -1009,23 +1009,23 @@ size_t AsyncClient::write(const char* data, size_t size, uint8_t apiflags) {
     return will_send;
 }
 
-void AsyncClient::setRxTimeout(uint32_t timeout){
+void newAsyncClient::setRxTimeout(uint32_t timeout){
     _rx_since_timeout = timeout;
 }
 
-uint32_t AsyncClient::getRxTimeout(){
+uint32_t newAsyncClient::getRxTimeout(){
     return _rx_since_timeout;
 }
 
-uint32_t AsyncClient::getAckTimeout(){
+uint32_t newAsyncClient::getAckTimeout(){
     return _ack_timeout;
 }
 
-void AsyncClient::setAckTimeout(uint32_t timeout){
+void newAsyncClient::setAckTimeout(uint32_t timeout){
     _ack_timeout = timeout;
 }
 
-void AsyncClient::setNoDelay(bool nodelay){
+void newAsyncClient::setNoDelay(bool nodelay){
     if(!_pcb) {
         return;
     }
@@ -1036,111 +1036,111 @@ void AsyncClient::setNoDelay(bool nodelay){
     }
 }
 
-bool AsyncClient::getNoDelay(){
+bool newAsyncClient::getNoDelay(){
     if(!_pcb) {
         return false;
     }
     return tcp_nagle_disabled(_pcb);
 }
 
-uint16_t AsyncClient::getMss(){
+uint16_t newAsyncClient::getMss(){
     if(!_pcb) {
         return 0;
     }
     return tcp_mss(_pcb);
 }
 
-uint32_t AsyncClient::getRemoteAddress() {
+uint32_t newAsyncClient::getRemoteAddress() {
     if(!_pcb) {
         return 0;
     }
     return _pcb->remote_ip.u_addr.ip4.addr;
 }
 
-uint16_t AsyncClient::getRemotePort() {
+uint16_t newAsyncClient::getRemotePort() {
     if(!_pcb) {
         return 0;
     }
     return _pcb->remote_port;
 }
 
-uint32_t AsyncClient::getLocalAddress() {
+uint32_t newAsyncClient::getLocalAddress() {
     if(!_pcb) {
         return 0;
     }
     return _pcb->local_ip.u_addr.ip4.addr;
 }
 
-uint16_t AsyncClient::getLocalPort() {
+uint16_t newAsyncClient::getLocalPort() {
     if(!_pcb) {
         return 0;
     }
     return _pcb->local_port;
 }
 
-IPAddress AsyncClient::remoteIP() {
+IPAddress newAsyncClient::remoteIP() {
     return IPAddress(getRemoteAddress());
 }
 
-uint16_t AsyncClient::remotePort() {
+uint16_t newAsyncClient::remotePort() {
     return getRemotePort();
 }
 
-IPAddress AsyncClient::localIP() {
+IPAddress newAsyncClient::localIP() {
     return IPAddress(getLocalAddress());
 }
 
-uint16_t AsyncClient::localPort() {
+uint16_t newAsyncClient::localPort() {
     return getLocalPort();
 }
 
-uint8_t AsyncClient::state() {
+uint8_t newAsyncClient::state() {
     if(!_pcb) {
         return 0;
     }
     return _pcb->state;
 }
 
-bool AsyncClient::connected(){
+bool newAsyncClient::connected(){
     if (!_pcb) {
         return false;
     }
     return _pcb->state == 4;
 }
 
-bool AsyncClient::connecting(){
+bool newAsyncClient::connecting(){
     if (!_pcb) {
         return false;
     }
     return _pcb->state > 0 && _pcb->state < 4;
 }
 
-bool AsyncClient::disconnecting(){
+bool newAsyncClient::disconnecting(){
     if (!_pcb) {
         return false;
     }
     return _pcb->state > 4 && _pcb->state < 10;
 }
 
-bool AsyncClient::disconnected(){
+bool newAsyncClient::disconnected(){
     if (!_pcb) {
         return true;
     }
     return _pcb->state == 0 || _pcb->state == 10;
 }
 
-bool AsyncClient::freeable(){
+bool newAsyncClient::freeable(){
     if (!_pcb) {
         return true;
     }
     return _pcb->state == 0 || _pcb->state > 4;
 }
 
-bool AsyncClient::canSend(){
+bool newAsyncClient::canSend(){
     return space() > 0;
 }
 
-const char * AsyncClient::errorToString(int8_t error){
+const char * newAsyncClient::errorToString(int8_t error){
     switch(error){
         case ERR_OK: return "OK";
         case ERR_MEM: return "Out of memory error";
@@ -1163,7 +1163,7 @@ const char * AsyncClient::errorToString(int8_t error){
     }
 }
 
-const char * AsyncClient::stateToString(){
+const char * newAsyncClient::stateToString(){
     switch(state()){
         case 0: return "Closed";
         case 1: return "Listen";
@@ -1184,43 +1184,43 @@ const char * AsyncClient::stateToString(){
  * Static Callbacks (LwIP C2C++ interconnect)
  * */
 
-void AsyncClient::_s_dns_found(const char * name, struct ip_addr * ipaddr, void * arg){
-    reinterpret_cast<AsyncClient*>(arg)->_dns_found(ipaddr);
+void newAsyncClient::_s_dns_found(const char * name, struct ip_addr * ipaddr, void * arg){
+    reinterpret_cast<newAsyncClient*>(arg)->_dns_found(ipaddr);
 }
 
-int8_t AsyncClient::_s_poll(void * arg, struct tcp_pcb * pcb) {
-    return reinterpret_cast<AsyncClient*>(arg)->_poll(pcb);
+int8_t newAsyncClient::_s_poll(void * arg, struct tcp_pcb * pcb) {
+    return reinterpret_cast<newAsyncClient*>(arg)->_poll(pcb);
 }
 
-int8_t AsyncClient::_s_recv(void * arg, struct tcp_pcb * pcb, struct pbuf *pb, int8_t err) {
-    return reinterpret_cast<AsyncClient*>(arg)->_recv(pcb, pb, err);
+int8_t newAsyncClient::_s_recv(void * arg, struct tcp_pcb * pcb, struct pbuf *pb, int8_t err) {
+    return reinterpret_cast<newAsyncClient*>(arg)->_recv(pcb, pb, err);
 }
 
-int8_t AsyncClient::_s_fin(void * arg, struct tcp_pcb * pcb, int8_t err) {
-    return reinterpret_cast<AsyncClient*>(arg)->_fin(pcb, err);
+int8_t newAsyncClient::_s_fin(void * arg, struct tcp_pcb * pcb, int8_t err) {
+    return reinterpret_cast<newAsyncClient*>(arg)->_fin(pcb, err);
 }
 
-int8_t AsyncClient::_s_lwip_fin(void * arg, struct tcp_pcb * pcb, int8_t err) {
-    return reinterpret_cast<AsyncClient*>(arg)->_lwip_fin(pcb, err);
+int8_t newAsyncClient::_s_lwip_fin(void * arg, struct tcp_pcb * pcb, int8_t err) {
+    return reinterpret_cast<newAsyncClient*>(arg)->_lwip_fin(pcb, err);
 }
 
-int8_t AsyncClient::_s_sent(void * arg, struct tcp_pcb * pcb, uint16_t len) {
-    return reinterpret_cast<AsyncClient*>(arg)->_sent(pcb, len);
+int8_t newAsyncClient::_s_sent(void * arg, struct tcp_pcb * pcb, uint16_t len) {
+    return reinterpret_cast<newAsyncClient*>(arg)->_sent(pcb, len);
 }
 
-void AsyncClient::_s_error(void * arg, int8_t err) {
-    reinterpret_cast<AsyncClient*>(arg)->_error(err);
+void newAsyncClient::_s_error(void * arg, int8_t err) {
+    reinterpret_cast<newAsyncClient*>(arg)->_error(err);
 }
 
-int8_t AsyncClient::_s_connected(void * arg, void * pcb, int8_t err){
-    return reinterpret_cast<AsyncClient*>(arg)->_connected(pcb, err);
+int8_t newAsyncClient::_s_connected(void * arg, void * pcb, int8_t err){
+    return reinterpret_cast<newAsyncClient*>(arg)->_connected(pcb, err);
 }
 
 /*
   Async TCP Server
  */
 
-AsyncServer::AsyncServer(IPAddress addr, uint16_t port)
+newAsyncServer::newAsyncServer(IPAddress addr, uint16_t port)
 : _port(port)
 , _addr(addr)
 , _noDelay(false)
@@ -1229,7 +1229,7 @@ AsyncServer::AsyncServer(IPAddress addr, uint16_t port)
 , _connect_cb_arg(0)
 {}
 
-AsyncServer::AsyncServer(uint16_t port)
+newAsyncServer::newAsyncServer(uint16_t port)
 : _port(port)
 , _addr((uint32_t) IPADDR_ANY)
 , _noDelay(false)
@@ -1238,16 +1238,16 @@ AsyncServer::AsyncServer(uint16_t port)
 , _connect_cb_arg(0)
 {}
 
-AsyncServer::~AsyncServer(){
+newAsyncServer::~newAsyncServer(){
     end();
 }
 
-void AsyncServer::onClient(AcConnectHandler cb, void* arg){
+void newAsyncServer::onClient(AcConnectHandler cb, void* arg){
     _connect_cb = cb;
     _connect_cb_arg = arg;
 }
 
-void AsyncServer::begin(){
+void newAsyncServer::begin(){
     if(_pcb) {
         return;
     }
@@ -1284,7 +1284,7 @@ void AsyncServer::begin(){
     new_tcp_accept(_pcb, &_s_accept);
 }
 
-void AsyncServer::end(){
+void newAsyncServer::end(){
     if(_pcb){
         new_tcp_arg(_pcb, NULL);
         new_tcp_accept(_pcb, NULL);
@@ -1296,10 +1296,10 @@ void AsyncServer::end(){
 }
 
 //runs on LwIP thread
-int8_t AsyncServer::_accept(tcp_pcb* pcb, int8_t err){
+int8_t newAsyncServer::_accept(tcp_pcb* pcb, int8_t err){
     //ets_printf("+A: 0x%08x\n", pcb);
     if(_connect_cb){
-        AsyncClient *c = new AsyncClient(pcb);
+        newAsyncClient *c = new newAsyncClient(pcb);
         if(c){
             c->setNoDelay(_noDelay);
             return _tcp_accept(this, c);
@@ -1312,32 +1312,32 @@ int8_t AsyncServer::_accept(tcp_pcb* pcb, int8_t err){
     return ERR_OK;
 }
 
-int8_t AsyncServer::_accepted(AsyncClient* client){
+int8_t newAsyncServer::_accepted(newAsyncClient* client){
     if(_connect_cb){
         _connect_cb(_connect_cb_arg, client);
     }
     return ERR_OK;
 }
 
-void AsyncServer::setNoDelay(bool nodelay){
+void newAsyncServer::setNoDelay(bool nodelay){
     _noDelay = nodelay;
 }
 
-bool AsyncServer::getNoDelay(){
+bool newAsyncServer::getNoDelay(){
     return _noDelay;
 }
 
-uint8_t AsyncServer::status(){
+uint8_t newAsyncServer::status(){
     if (!_pcb) {
         return 0;
     }
     return _pcb->state;
 }
 
-int8_t AsyncServer::_s_accept(void * arg, tcp_pcb * pcb, int8_t err){
-    return reinterpret_cast<AsyncServer*>(arg)->_accept(pcb, err);
+int8_t newAsyncServer::_s_accept(void * arg, tcp_pcb * pcb, int8_t err){
+    return reinterpret_cast<newAsyncServer*>(arg)->_accept(pcb, err);
 }
 
-int8_t AsyncServer::_s_accepted(void *arg, AsyncClient* client){
-    return reinterpret_cast<AsyncServer*>(arg)->_accepted(client);
+int8_t newAsyncServer::_s_accepted(void *arg, newAsyncClient* client){
+    return reinterpret_cast<newAsyncServer*>(arg)->_accepted(client);
 }

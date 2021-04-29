@@ -38,33 +38,33 @@ extern "C" {
 #define CONFIG_ASYNC_TCP_USE_WDT 1 //if enabled, adds between 33us and 200us per event
 #endif
 
-class AsyncClient;
+class newAsyncClient;
 
 #define ASYNC_MAX_ACK_TIME 5000
 #define ASYNC_WRITE_FLAG_COPY 0x01 //will allocate new buffer to hold the data while sending (else will hold reference to the data given)
 #define ASYNC_WRITE_FLAG_MORE 0x02 //will not send PSH flag, meaning that there should be more data to be sent before the application should react.
 
-typedef std::function<void(void*, AsyncClient*)> AcConnectHandler;
-typedef std::function<void(void*, AsyncClient*, size_t len, uint32_t time)> AcAckHandler;
-typedef std::function<void(void*, AsyncClient*, int8_t error)> AcErrorHandler;
-typedef std::function<void(void*, AsyncClient*, void *data, size_t len)> AcDataHandler;
-typedef std::function<void(void*, AsyncClient*, struct pbuf *pb)> AcPacketHandler;
-typedef std::function<void(void*, AsyncClient*, uint32_t time)> AcTimeoutHandler;
+typedef std::function<void(void*, newAsyncClient*)> AcConnectHandler;
+typedef std::function<void(void*, newAsyncClient*, size_t len, uint32_t time)> AcAckHandler;
+typedef std::function<void(void*, newAsyncClient*, int8_t error)> AcErrorHandler;
+typedef std::function<void(void*, newAsyncClient*, void *data, size_t len)> AcDataHandler;
+typedef std::function<void(void*, newAsyncClient*, struct pbuf *pb)> AcPacketHandler;
+typedef std::function<void(void*, newAsyncClient*, uint32_t time)> AcTimeoutHandler;
 
 struct tcp_pcb;
 struct ip_addr;
 
-class AsyncClient {
+class newAsyncClient {
   public:
-    AsyncClient(tcp_pcb* pcb = 0);
-    ~AsyncClient();
+    newAsyncClient(tcp_pcb* pcb = 0);
+    ~newAsyncClient();
 
-    AsyncClient & operator=(const AsyncClient &other);
-    AsyncClient & operator+=(const AsyncClient &other);
+    newAsyncClient & operator=(const newAsyncClient &other);
+    newAsyncClient & operator+=(const newAsyncClient &other);
 
-    bool operator==(const AsyncClient &other);
+    bool operator==(const newAsyncClient &other);
 
-    bool operator!=(const AsyncClient &other) {
+    bool operator!=(const newAsyncClient &other) {
       return !(*this == other);
     }
     bool connect(IPAddress ip, uint16_t port);
@@ -181,15 +181,15 @@ class AsyncClient {
     void _dns_found(struct ip_addr *ipaddr);
 
   public:
-    AsyncClient* prev;
-    AsyncClient* next;
+    newAsyncClient* prev;
+    newAsyncClient* next;
 };
 
-class AsyncServer {
+class newAsyncServer {
   public:
-    AsyncServer(IPAddress addr, uint16_t port);
-    AsyncServer(uint16_t port);
-    ~AsyncServer();
+    newAsyncServer(IPAddress addr, uint16_t port);
+    newAsyncServer(uint16_t port);
+    ~newAsyncServer();
     void onClient(AcConnectHandler cb, void* arg);
     void begin();
     void end();
@@ -199,7 +199,7 @@ class AsyncServer {
 
     //Do not use any of the functions below!
     static int8_t _s_accept(void *arg, tcp_pcb* newpcb, int8_t err);
-    static int8_t _s_accepted(void *arg, AsyncClient* client);
+    static int8_t _s_accepted(void *arg, newAsyncClient* client);
 
   protected:
     uint16_t _port;
@@ -210,8 +210,7 @@ class AsyncServer {
     void* _connect_cb_arg;
 
     int8_t _accept(tcp_pcb* newpcb, int8_t err);
-    int8_t _accepted(AsyncClient* client);
+    int8_t _accepted(newAsyncClient* client);
 };
-
 
 #endif /* ASYNCTCP_H_ */
