@@ -51,12 +51,12 @@ typedef std::function<void(void*, newAsyncClient*, void *data, size_t len)> newA
 typedef std::function<void(void*, newAsyncClient*, struct pbuf *pb)> newAcPacketHandler;
 typedef std::function<void(void*, newAsyncClient*, uint32_t time)> newAcTimeoutHandler;
 
-struct tcp_pcb;
-struct ip_addr;
+struct new_tcp_pcb;
+struct new_ip_addr;
 
 class newAsyncClient {
   public:
-    newAsyncClient(tcp_pcb* pcb = 0);
+    newAsyncClient(new_tcp_pcb* pcb = 0);
     ~newAsyncClient();
 
     newAsyncClient & operator=(const newAsyncClient &other);
@@ -129,20 +129,20 @@ class newAsyncClient {
     const char * stateToString();
 
     //Do not use any of the functions below!
-    static int8_t _s_poll(void *arg, struct tcp_pcb *tpcb);
-    static int8_t _s_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *pb, int8_t err);
-    static int8_t _s_fin(void *arg, struct tcp_pcb *tpcb, int8_t err);
-    static int8_t _s_lwip_fin(void *arg, struct tcp_pcb *tpcb, int8_t err);
+    static int8_t _s_poll(void *arg, struct new_tcp_pcb *tpcb);
+    static int8_t _s_recv(void *arg, struct new_tcp_pcb *tpcb, struct pbuf *pb, int8_t err);
+    static int8_t _s_fin(void *arg, struct new_tcp_pcb *tpcb, int8_t err);
+    static int8_t _s_lwip_fin(void *arg, struct new_tcp_pcb *tpcb, int8_t err);
     static void _s_error(void *arg, int8_t err);
-    static int8_t _s_sent(void *arg, struct tcp_pcb *tpcb, uint16_t len);
+    static int8_t _s_sent(void *arg, struct new_tcp_pcb *tpcb, uint16_t len);
     static int8_t _s_connected(void* arg, void* tpcb, int8_t err);
-    static void _s_dns_found(const char *name, struct ip_addr *ipaddr, void *arg);
+    static void _s_dns_found(const char *name, struct new_ip_addr *ipaddr, void *arg);
 
-    int8_t _recv(tcp_pcb* pcb, pbuf* pb, int8_t err);
-    tcp_pcb * pcb(){ return _pcb; }
+    int8_t _recv(new_tcp_pcb* pcb, pbuf* pb, int8_t err);
+    new_tcp_pcb * pcb(){ return _pcb; }
 
   protected:
-    tcp_pcb* _pcb;
+    new_tcp_pcb* _pcb;
     int8_t  _closed_slot;
 
     newAcConnectHandler _connect_cb;
@@ -174,11 +174,11 @@ class newAsyncClient {
     int8_t _close();
     int8_t _connected(void* pcb, int8_t err);
     void _error(int8_t err);
-    int8_t _poll(tcp_pcb* pcb);
-    int8_t _sent(tcp_pcb* pcb, uint16_t len);
-    int8_t _fin(tcp_pcb* pcb, int8_t err);
-    int8_t _lwip_fin(tcp_pcb* pcb, int8_t err);
-    void _dns_found(struct ip_addr *ipaddr);
+    int8_t _poll(new_tcp_pcb* pcb);
+    int8_t _sent(new_tcp_pcb* pcb, uint16_t len);
+    int8_t _fin(new_tcp_pcb* pcb, int8_t err);
+    int8_t _lwip_fin(new_tcp_pcb* pcb, int8_t err);
+    void _dns_found(struct new_ip_addr *ipaddr);
 
   public:
     newAsyncClient* prev;
@@ -198,18 +198,18 @@ class newAsyncServer {
     uint8_t status();
 
     //Do not use any of the functions below!
-    static int8_t _s_accept(void *arg, tcp_pcb* newpcb, int8_t err);
+    static int8_t _s_accept(void *arg, new_tcp_pcb* newpcb, int8_t err);
     static int8_t _s_accepted(void *arg, newAsyncClient* client);
 
   protected:
     uint16_t _port;
     IPAddress _addr;
     bool _noDelay;
-    tcp_pcb* _pcb;
+    new_tcp_pcb* _pcb;
     newAcConnectHandler _connect_cb;
     void* _connect_cb_arg;
 
-    int8_t _accept(tcp_pcb* newpcb, int8_t err);
+    int8_t _accept(new_tcp_pcb* newpcb, int8_t err);
     int8_t _accepted(newAsyncClient* client);
 };
 
