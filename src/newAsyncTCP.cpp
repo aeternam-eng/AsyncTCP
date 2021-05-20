@@ -23,6 +23,8 @@
 
 #include "newAsyncTCP.h"
 
+#include "rpcWiFi.h"
+
 #include "esp/esp_err.h"
 
 extern "C"{
@@ -184,7 +186,7 @@ static void _new_handle_async_event(new_lwip_event_packet_t * e){
     free((void*)(e));
 }
 
-static void _new_async_service_task(void *pvParameters){
+static void _new_async_service_task(void *pvParameters) {
     new_lwip_event_packet_t * packet = NULL;
     for (;;) {
         if(_new_get_async_event(&packet)){
@@ -194,7 +196,7 @@ static void _new_async_service_task(void *pvParameters){
             }
 #endif
             _new_handle_async_event(packet);
-            //vTaskDelay(1);
+            //delay(10);
 #if CONFIG_ASYNC_TCP_USE_WDT
             if(esp_task_wdt_delete(NULL) != ESP_OK){
                 log_e("Failed to remove loop task from WDT");
@@ -218,7 +220,7 @@ static bool _new_start_async_task(){
         return false;
     }
     if(!_new_async_service_task_handle){
-        xTaskCreateUniversal(_new_async_service_task, "async_tcp", 8192 * 2, NULL, 3, &_new_async_service_task_handle, CONFIG_ASYNC_TCP_RUNNING_CORE);
+        xTaskCreateUniversal(_new_async_service_task, "async_tcp", 8192 * 2, NULL, 10, &_new_async_service_task_handle, CONFIG_ASYNC_TCP_RUNNING_CORE);
         if(!_new_async_service_task_handle){
             return false;
         }
@@ -314,7 +316,7 @@ static void _new_tcp_error(void * arg, int8_t err) {
 
 static void _new_tcp_dns_found(const char * name, struct new_ip_addr * ipaddr, void * arg) {
     new_lwip_event_packet_t * e = (new_lwip_event_packet_t *)malloc(sizeof(new_lwip_event_packet_t));
-    //ets_printf("+DNS: name=%s ipaddr=0x%08x arg=%x\n", name, ipaddr, arg);
+    log_d("+DNS: name=%s ipaddr=0x%08x arg=%x\n", name, ipaddr, arg);
     e->event = NEW_LWIP_TCP_DNS;
     e->arg = arg;
     e->dns.name = name;
@@ -584,7 +586,7 @@ newAsyncClient::newAsyncClient(new_tcp_pcb* pcb)
         new_tcp_recv(_pcb, &_new_tcp_recv);
         new_tcp_sent(_pcb, &_new_tcp_sent);
         new_tcp_err(_pcb, &_new_tcp_error);
-        new_tcp_poll(_pcb, &_new_tcp_poll, 1);
+        new_tcp_poll(_pcb, &_new_tcp_poll, 100);
     }
 }
 
@@ -707,7 +709,7 @@ bool newAsyncClient::connect(IPAddress ip, uint16_t port){
     new_tcp_err(pcb, &_new_tcp_error);
     new_tcp_recv(pcb, &_new_tcp_recv);
     new_tcp_sent(pcb, &_new_tcp_sent);
-    new_tcp_poll(pcb, &_new_tcp_poll, 1);
+    new_tcp_poll(pcb, &_new_tcp_poll, 100);
     //_new_tcp_connect(pcb, &addr, port,(tcp_connected_fn)&_s_connected);
     _new_tcp_connect(pcb, _closed_slot, &addr, port,(tcp_connected_fn)&_new_tcp_connected);
     return true;
@@ -904,6 +906,10 @@ int8_t newAsyncClient::_sent(new_tcp_pcb* pcb, uint16_t len) {
 }
 
 int8_t newAsyncClient::_recv(new_tcp_pcb* pcb, pbuf* pb, int8_t err) {
+    if(pcb != _pcb){
+        log_e("0x%08x != 0x%08x", (uint32_t)pcb, (uint32_t)_pcb);
+        return ERR_OK;
+    }
     while(pb != NULL) {
         _rx_last_packet = millis();
         //we should not ack before we assimilate the data
