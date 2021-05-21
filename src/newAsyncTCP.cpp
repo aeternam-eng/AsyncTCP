@@ -220,7 +220,7 @@ static bool _new_start_async_task(){
         return false;
     }
     if(!_new_async_service_task_handle){
-        xTaskCreateUniversal(_new_async_service_task, "async_tcp", 8192 * 2, NULL, 10, &_new_async_service_task_handle, CONFIG_ASYNC_TCP_RUNNING_CORE);
+        xTaskCreateUniversal(_new_async_service_task, "async_tcp", 8192 * 2, NULL, 2, &_new_async_service_task_handle, NEW_CONFIG_ASYNC_TCP_RUNNING_CORE);
         if(!_new_async_service_task_handle){
             return false;
         }
@@ -778,8 +778,8 @@ bool newAsyncClient::send(){
     int8_t err = ERR_OK;
     err = _new_tcp_output(_pcb, _closed_slot);
     if(err == ERR_OK){
-        _pcb_busy = true;
         _pcb_sent_at = millis();
+        _pcb_busy = true;
         return true;
     }
     return false;
@@ -897,7 +897,7 @@ int8_t newAsyncClient::_fin(new_tcp_pcb* pcb, int8_t err) {
 
 int8_t newAsyncClient::_sent(new_tcp_pcb* pcb, uint16_t len) {
     _rx_last_packet = millis();
-    //log_i("%u", len);
+    log_i("%u", len);
     _pcb_busy = false;
     if(_sent_cb) {
         _sent_cb(_sent_cb_arg, this, len, (millis() - _pcb_sent_at));
