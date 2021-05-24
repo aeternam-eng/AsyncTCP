@@ -189,15 +189,16 @@ static void _new_handle_async_event(new_lwip_event_packet_t * e){
 static void _new_async_service_task(void *pvParameters) {
     new_lwip_event_packet_t * packet = NULL;
     for (;;) {
+        //delay(10);
         if(_new_get_async_event(&packet)){
-#if CONFIG_ASYNC_TCP_USE_WDT
+#if NEW_CONFIG_ASYNC_TCP_USE_WDT
             if(esp_task_wdt_add(NULL) != ESP_OK){
                 log_e("Failed to add async task to WDT");
             }
 #endif
             _new_handle_async_event(packet);
             //delay(10);
-#if CONFIG_ASYNC_TCP_USE_WDT
+#if NEW_CONFIG_ASYNC_TCP_USE_WDT
             if(esp_task_wdt_delete(NULL) != ESP_OK){
                 log_e("Failed to remove loop task from WDT");
             }
@@ -216,11 +217,12 @@ static void _stop_async_task(){
 }
 */
 static bool _new_start_async_task(){
+    log_w("Started new async task in newAsyncTCP");
     if(!_new_init_async_event_queue()){
         return false;
     }
     if(!_new_async_service_task_handle){
-        xTaskCreateUniversal(_new_async_service_task, "async_tcp", 8192 * 2, NULL, 2, &_new_async_service_task_handle, NEW_CONFIG_ASYNC_TCP_RUNNING_CORE);
+        xTaskCreateUniversal(_new_async_service_task, "async_tcp", 8192 * 2, NULL, 3, &_new_async_service_task_handle, NEW_CONFIG_ASYNC_TCP_RUNNING_CORE);
         if(!_new_async_service_task_handle){
             return false;
         }
@@ -586,7 +588,7 @@ newAsyncClient::newAsyncClient(new_tcp_pcb* pcb)
         new_tcp_recv(_pcb, &_new_tcp_recv);
         new_tcp_sent(_pcb, &_new_tcp_sent);
         new_tcp_err(_pcb, &_new_tcp_error);
-        new_tcp_poll(_pcb, &_new_tcp_poll, 100);
+        new_tcp_poll(_pcb, &_new_tcp_poll, 1);
     }
 }
 
@@ -690,6 +692,7 @@ bool newAsyncClient::connect(IPAddress ip, uint16_t port){
         log_w("already connected, state %d", _pcb->state);
         return false;
     }
+    log_d("new start async task from ip port connect");
     if(!_new_start_async_task()){
         log_e("failed to start task");
         return false;
@@ -709,7 +712,7 @@ bool newAsyncClient::connect(IPAddress ip, uint16_t port){
     new_tcp_err(pcb, &_new_tcp_error);
     new_tcp_recv(pcb, &_new_tcp_recv);
     new_tcp_sent(pcb, &_new_tcp_sent);
-    new_tcp_poll(pcb, &_new_tcp_poll, 100);
+    new_tcp_poll(pcb, &_new_tcp_poll, 1);
     //_new_tcp_connect(pcb, &addr, port,(tcp_connected_fn)&_s_connected);
     _new_tcp_connect(pcb, _closed_slot, &addr, port,(tcp_connected_fn)&_new_tcp_connected);
     return true;
@@ -718,6 +721,7 @@ bool newAsyncClient::connect(IPAddress ip, uint16_t port){
 bool newAsyncClient::connect(const char* host, uint16_t port){
     new_ip_addr_t addr;
     
+    log_d("new async task inside host port connect");
     if(!_new_start_async_task()){
       Serial.println("failed to start task");
       log_e("failed to start task");
@@ -726,6 +730,7 @@ bool newAsyncClient::connect(const char* host, uint16_t port){
     
     err_t err = new_dns_gethostbyname(host, &addr, (dns_found_callback)&_new_tcp_dns_found, this);
     if(err == ERR_OK) {
+        log_d("calling connect after new_dns_gethostbyname");
         return connect(IPAddress(addr.u_addr.ip4.addr), port);
     } else if(err == ERR_INPROGRESS) {
         _connect_port = port;
@@ -969,7 +974,8 @@ int8_t newAsyncClient::_poll(new_tcp_pcb* pcb){
 
 void newAsyncClient::_dns_found(struct new_ip_addr *ipaddr){
     if(ipaddr && ipaddr->u_addr.ip4.addr){
-        connect(IPAddress(ipaddr->u_addr.ip4.addr), _connect_port);
+        log_d("calling connect from dns found");
+        //connect(IPAddress(ipaddr->u_addr.ip4.addr), _connect_port);
     } else {
         if(_error_cb) {
             _error_cb(_error_cb_arg, this, -55);
