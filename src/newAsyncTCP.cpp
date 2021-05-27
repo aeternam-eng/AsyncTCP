@@ -36,11 +36,13 @@ extern "C"{
 }
 #include "esp_task_wdt.h"
 
+static SemaphoreHandle_t asyncTaskSemaphore;
+
 /*
  * TCP/IP Event Task
  * */
 
-typedef enum : uint8_t {
+typedef enum {
     NEW_LWIP_TCP_SENT, NEW_LWIP_TCP_RECV, NEW_LWIP_TCP_FIN, NEW_LWIP_TCP_ERROR, NEW_LWIP_TCP_POLL, NEW_LWIP_TCP_CLEAR, NEW_LWIP_TCP_ACCEPT, NEW_LWIP_TCP_CONNECTED, NEW_LWIP_TCP_DNS
 } new_lwip_event_t;
 
@@ -189,21 +191,25 @@ static void _new_handle_async_event(new_lwip_event_packet_t * e){
 static void _new_async_service_task(void *pvParameters) {
     new_lwip_event_packet_t * packet = NULL;
     for (;;) {
-        //delay(10);
+        do {} while (xSemaphoreTake(asyncTaskSemaphore, portMAX_DELAY) != pdPASS);
         if(_new_get_async_event(&packet)){
 #if NEW_CONFIG_ASYNC_TCP_USE_WDT
             if(esp_task_wdt_add(NULL) != ESP_OK){
                 log_e("Failed to add async task to WDT");
             }
 #endif
-            _new_handle_async_event(packet);
-            //delay(10);
+        
+        log_i("AsyncTCP is taking the Semaphore");
+        _new_handle_async_event(packet);
+        xSemaphoreGive(asyncTaskSemaphore);
+        log_i("AsyncTCP is giving the Semaphore");
+
 #if NEW_CONFIG_ASYNC_TCP_USE_WDT
             if(esp_task_wdt_delete(NULL) != ESP_OK){
                 log_e("Failed to remove loop task from WDT");
             }
 #endif
-        }
+        } 
     }
     vTaskDelete(NULL);
     _new_async_service_task_handle = NULL;
@@ -222,7 +228,7 @@ static bool _new_start_async_task(){
         return false;
     }
     if(!_new_async_service_task_handle){
-        xTaskCreateUniversal(_new_async_service_task, "async_tcp", 8192 * 2, NULL, 3, &_new_async_service_task_handle, NEW_CONFIG_ASYNC_TCP_RUNNING_CORE);
+        xTaskCreateUniversal(_new_async_service_task, "async_tcp", 8192 * 2, NULL, 2, &_new_async_service_task_handle, NEW_CONFIG_ASYNC_TCP_RUNNING_CORE);
         if(!_new_async_service_task_handle){
             return false;
         }
@@ -569,6 +575,7 @@ newAsyncClient::newAsyncClient(new_tcp_pcb* pcb)
 , prev(NULL)
 , next(NULL)
 {
+    asyncTaskSemaphore = xSemaphoreCreateMutex();
     _pcb = pcb;
     _closed_slot = -1;
     if(_pcb){
@@ -781,12 +788,13 @@ size_t newAsyncClient::add(const char* data, size_t size, uint8_t apiflags) {
 
 bool newAsyncClient::send(){
     int8_t err = ERR_OK;
+    _pcb_sent_at = millis();
+    _pcb_busy = true;
     err = _new_tcp_output(_pcb, _closed_slot);
     if(err == ERR_OK){
-        _pcb_sent_at = millis();
-        _pcb_busy = true;
         return true;
     }
+    _pcb_busy = false;
     return false;
 }
 
