@@ -165,7 +165,9 @@ static bool _new_remove_events_with_arg(new_lwip_event_packet_t ** arg){
 }
 
 static void _new_handle_async_event(new_lwip_event_packet_t * e){
-    if(e->event == NEW_LWIP_TCP_CLEAR){
+    if(e->arg == NULL){
+
+    } else if(e->event == NEW_LWIP_TCP_CLEAR){
         _new_remove_events_with_arg(&e);
     } else if(e->event == NEW_LWIP_TCP_RECV){
         log_d("-R: 0x%08x\n", e->recv.pcb);
@@ -235,7 +237,7 @@ static bool _new_start_async_task(){
         return false;
     }
     if(!_new_async_service_task_handle){
-        xTaskCreateUniversal(_new_async_service_task, "async_tcp", 8192 * 2, NULL, 1, &_new_async_service_task_handle, NEW_CONFIG_ASYNC_TCP_RUNNING_CORE);
+        xTaskCreateUniversal(_new_async_service_task, "async_tcp", 8192 * 2, NULL, 3, &_new_async_service_task_handle, NEW_CONFIG_ASYNC_TCP_RUNNING_CORE);
         if(!_new_async_service_task_handle){
             return false;
         }
