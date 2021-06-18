@@ -121,8 +121,8 @@ static inline bool _new_get_async_event(new_lwip_event_packet_t ** e){
     return _new_async_queue && xQueueReceive(_new_async_queue, e, portMAX_DELAY) == pdPASS;
 }
 
-static bool _new_remove_events_with_arg(void * arg){
-    new_lwip_event_packet_t * packet_in = arg;
+static bool _new_remove_events_with_arg(new_lwip_event_packet_t ** arg){
+    new_lwip_event_packet_t * packet_in = *arg;
     new_lwip_event_packet_t * first_packet = NULL;
     new_lwip_event_packet_t * packet = NULL;
 
@@ -145,7 +145,7 @@ static bool _new_remove_events_with_arg(void * arg){
             free(first_packet);
             first_packet = NULL;
         // If not matching, return packet back to the end of the queue and continue
-        } else if(xQueueSendToBack(_async_queue, &first_packet, portMAX_DELAY) != pdPASS){
+        } else if(xQueueSendToBack(_new_async_queue, &first_packet, portMAX_DELAY) != pdPASS){
             return false;
         }
     }
@@ -157,7 +157,7 @@ static bool _new_remove_events_with_arg(void * arg){
         if(reinterpret_cast<int>(packet->arg) == arg_in){
             free(packet);
             packet = NULL;
-        } else if(xQueueSendToBack(_async_queue, &packet, portMAX_DELAY) != pdPASS){
+        } else if(xQueueSendToBack(_new_async_queue, &packet, portMAX_DELAY) != pdPASS){
             return false;
         }
     }
