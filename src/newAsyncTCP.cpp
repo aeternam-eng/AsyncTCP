@@ -122,35 +122,42 @@ static inline bool _new_get_async_event(new_lwip_event_packet_t ** e){
 }
 
 static bool _new_remove_events_with_arg(void * arg){
+    new_lwip_event_packet_t * packet_in = arg;
     new_lwip_event_packet_t * first_packet = NULL;
     new_lwip_event_packet_t * packet = NULL;
 
-    if(!_new_async_queue){
+    if(!_new_async_queue || !packet_in){
         return false;
+    } else {
+        // Nullifying the event packet pointer so that it is safe to call
+        // free() later even if there are duplicate events in the queue
+        *arg = NULL;
     }
-    //figure out which is the first packet so we can keep the order
-    while(!first_packet){
+    int arg_in = reinterpret_cast<int>(packet_in->arg);
+    // Figure out which is the first packet so we can keep the order
+    while(!first_packet) {
         if(xQueueReceive(_new_async_queue, &first_packet, 0) != pdPASS){
             return false;
         }
-        //discard packet if matching
-        if((int)first_packet->arg == (int)arg){
+        // Packet was already removed from the queue, so if matching, it is
+        // not added back but discarded, and also its memory is freed.
+        if(reinterpret_cast<int>(first_packet->arg) == arg_in) {
             free(first_packet);
             first_packet = NULL;
-        //return first packet to the back of the queue
-        } else if(xQueueSend(_new_async_queue, &first_packet, portMAX_DELAY) != pdPASS){
+        // If not matching, return packet back to the end of the queue and continue
+        } else if(xQueueSendToBack(_async_queue, &first_packet, portMAX_DELAY) != pdPASS){
             return false;
         }
     }
-
+    // Same for all othes until arriving back again at the front (first_packet)
     while(xQueuePeek(_new_async_queue, &packet, 0) == pdPASS && packet != first_packet){
         if(xQueueReceive(_new_async_queue, &packet, 0) != pdPASS){
             return false;
         }
-        if((int)packet->arg == (int)arg){
+        if(reinterpret_cast<int>(packet->arg) == arg_in){
             free(packet);
             packet = NULL;
-        } else if(xQueueSend(_new_async_queue, &packet, portMAX_DELAY) != pdPASS){
+        } else if(xQueueSendToBack(_async_queue, &packet, portMAX_DELAY) != pdPASS){
             return false;
         }
     }
@@ -159,7 +166,7 @@ static bool _new_remove_events_with_arg(void * arg){
 
 static void _new_handle_async_event(new_lwip_event_packet_t * e){
     if(e->event == NEW_LWIP_TCP_CLEAR){
-        _new_remove_events_with_arg(e->arg);
+        _new_remove_events_with_arg(&e);
     } else if(e->event == NEW_LWIP_TCP_RECV){
         log_d("-R: 0x%08x\n", e->recv.pcb);
         newAsyncClient::_s_recv(e->arg, e->recv.pcb, e->recv.pb, e->recv.err);
@@ -185,7 +192,7 @@ static void _new_handle_async_event(new_lwip_event_packet_t * e){
         log_d("D: 0x%08x %s = %s\n", e->arg, e->dns.name, ipaddr_ntoa(&e->dns.addr));
         newAsyncClient::_s_dns_found(e->dns.name, &e->dns.addr, e->arg);
     }
-    free((void*)(e));
+    free(e);
 }
 
 static void _new_async_service_task(void *pvParameters) {
